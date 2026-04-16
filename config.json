@@ -1,0 +1,9 @@
+{
+  "api_url": "https://api.example.com",
+  "secret_key": "your_secret_key",
+  "device_id": "your_device_id",
+  "report_enabled": true,
+  "monitor_interval": 1,
+  "auto_start": true,
+  "theme": 0
+}
