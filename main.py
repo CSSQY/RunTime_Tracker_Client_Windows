@@ -797,25 +797,34 @@ class MainWindow(FluentWindow):
     
     def add_mapping(self):
         """新增映射"""
-        from qfluentwidgets import Dialog, LineEdit, BodyLabel
-        from PyQt5.QtWidgets import QVBoxLayout, QFormLayout
-        
-        dialog = Dialog("新增应用映射", self.app_mapping_page)
-        dialog_layout = QVBoxLayout()
-        
+        from qfluentwidgets import BodyLabel
+        from PyQt5.QtWidgets import QDialog, QFormLayout, QLineEdit, QVBoxLayout, QPushButton
+
+        dialog = QDialog(self.app_mapping_page)
+        dialog.setWindowTitle("新增应用映射")
+        dialog_layout = QVBoxLayout(dialog)
+
         form_layout = QFormLayout()
-        exe_edit = LineEdit()
-        name_edit = LineEdit()
-        form_layout.addRow(BodyLabel("可执行文件名:"), exe_edit)
-        form_layout.addRow(BodyLabel("映射名称:"), name_edit)
-        
+        exe_edit = QLineEdit()
+        name_edit = QLineEdit()
+        form_layout.addRow("可执行文件名:", exe_edit)
+        form_layout.addRow("映射名称:", name_edit)
+
+        button_layout = QVBoxLayout()
+        ok_button = QPushButton("确定")
+        cancel_button = QPushButton("取消")
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
         dialog_layout.addLayout(form_layout)
-        dialog.textLayout.addLayout(dialog_layout)
-        
-        if dialog.exec():
+        dialog_layout.addLayout(button_layout)
+
+        if dialog.exec_() == QDialog.Accepted:
             exe_name = exe_edit.text().strip()
             display_name = name_edit.text().strip()
-            
+
             if exe_name and display_name:
                 global original_mapping
                 original_mapping[exe_name] = display_name
@@ -854,36 +863,44 @@ class MainWindow(FluentWindow):
                 parent=self
             )
             return
-        
+
         row = selected_items[0].row()
         old_exe = self.mapping_table.item(row, 0).text()
         old_name = self.mapping_table.item(row, 1).text()
-        
-        from qfluentwidgets import Dialog, LineEdit, BodyLabel
-        from PyQt5.QtWidgets import QVBoxLayout, QFormLayout
-        
-        dialog = Dialog("编辑应用映射", self.app_mapping_page)
-        dialog_layout = QVBoxLayout()
-        
+
+        from PyQt5.QtWidgets import QDialog, QFormLayout, QLineEdit, QVBoxLayout, QPushButton
+
+        dialog = QDialog(self.app_mapping_page)
+        dialog.setWindowTitle("编辑应用映射")
+        dialog_layout = QVBoxLayout(dialog)
+
         form_layout = QFormLayout()
-        exe_edit = LineEdit()
+        exe_edit = QLineEdit()
         exe_edit.setText(old_exe)
-        name_edit = LineEdit()
+        name_edit = QLineEdit()
         name_edit.setText(old_name)
-        form_layout.addRow(BodyLabel("可执行文件名:"), exe_edit)
-        form_layout.addRow(BodyLabel("映射名称:"), name_edit)
-        
+        form_layout.addRow("可执行文件名:", exe_edit)
+        form_layout.addRow("映射名称:", name_edit)
+
+        button_layout = QVBoxLayout()
+        ok_button = QPushButton("确定")
+        cancel_button = QPushButton("取消")
+        ok_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
         dialog_layout.addLayout(form_layout)
-        dialog.textLayout.addLayout(dialog_layout)
-        
-        if dialog.exec():
+        dialog_layout.addLayout(button_layout)
+
+        if dialog.exec_() == QDialog.Accepted:
             new_exe = exe_edit.text().strip()
             new_name = name_edit.text().strip()
-            
+
             if new_exe and new_name:
                 global original_mapping
                 if old_exe != new_exe:
-                    del original_mapping[old_exe]
+                    original_mapping.pop(old_exe, None)
                 original_mapping[new_exe] = new_name
                 self.load_mappings_to_table()
                 InfoBar.success(
@@ -920,17 +937,23 @@ class MainWindow(FluentWindow):
                 parent=self
             )
             return
-        
+
         row = selected_items[0].row()
         exe_name = self.mapping_table.item(row, 0).text()
         display_name = self.mapping_table.item(row, 1).text()
-        
-        from qfluentwidgets import Dialog
-        dialog = Dialog("确认删除", f"确定要删除映射: {exe_name} → {display_name} 吗?", self.app_mapping_page)
-        
-        if dialog.exec():
+
+        from PyQt5.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            self,
+            "确认删除",
+            f"确定要删除映射: {exe_name} → {display_name} 吗?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
             global original_mapping
-            del original_mapping[exe_name]
+            original_mapping.pop(exe_name, None)
             self.load_mappings_to_table()
             InfoBar.success(
                 title="删除成功",
@@ -944,10 +967,11 @@ class MainWindow(FluentWindow):
     
     def save_app_mappings(self):
         """保存应用映射到 apps.json 并更新内存中的 app_mapping"""
-        global original_mapping, app_mapping, apps_json_path
-        
+        global original_mapping, app_mapping
+
         try:
-            with open(apps_json_path, 'w', encoding='utf-8') as f:
+            apps_json_save_path = get_user_data_path('apps.json')
+            with open(apps_json_save_path, 'w', encoding='utf-8') as f:
                 json.dump(original_mapping, f, indent=2, ensure_ascii=False)
             
             app_mapping = {k.lower(): v for k, v in original_mapping.items()}
@@ -993,7 +1017,7 @@ class MainWindow(FluentWindow):
         app_name_label = TitleLabel("运行时间跟踪器")
         app_info_layout.addWidget(app_name_label)
 
-        version_label = BodyLabel("版本: 1.0.0")
+        version_label = BodyLabel("版本: 1.0.1")
         app_info_layout.addWidget(version_label)
 
         developer_label = BodyLabel("开发者: CSSQY")
@@ -1154,20 +1178,18 @@ class MainWindow(FluentWindow):
     
     def init_data(self):
         """初始化数据"""
-        # 上报程序启动状态
-        report_system_status("程序启动", True)
-        
-        # 更新电池状态
+        QTimer.singleShot(100, self._report_startup_status)
         self.update_battery_status()
-        
-        # 定时更新电池状态
+
         self.battery_timer = QTimer(self)
         self.battery_timer.timeout.connect(self.update_battery_status)
-        self.battery_timer.start(60000)  # 每分钟更新一次
-        
-        # 监听系统主题变化
-        # 在当前版本的qfluentwidgets中，主题变化通过QApplication的paletteChanged信号实现
+        self.battery_timer.start(60000)
+
         QApplication.instance().paletteChanged.connect(self.on_system_theme_changed)
+
+    def _report_startup_status(self):
+        """延迟上报程序启动状态，避免阻塞窗口显示"""
+        report_system_status("程序启动", True)
     
     def start_monitor(self):
         """启动应用监控线程"""
